@@ -12,25 +12,28 @@ class Glove_LSTM(nn.Module):
         embed_dim: int = 200,
         text_features: int = 256,
         n_layer_lstm: int = 1,
-        weight_embedding_path: str = 'data/flickr8k/embedding_matrix.pkl',
+        dataset_dir: str = 'data/flickr8k',
     ) -> None:
         super().__init__()
 
         self.embed = nn.Embedding.from_pretrained(
-            self.load_weight_embedding(weight_embedding_path))
+            self.load_weight_embedding(dataset_dir), freeze=True)
+
         self.dropout = nn.Dropout(p=0.5)
         self.lstm = nn.LSTM(input_size=embed_dim,
                             hidden_size=text_features,
                             num_layers=n_layer_lstm,
                             batch_first=False)
 
-    def load_weight_embedding(self, weight_embedding_path: str):
-        if not osp.exists(weight_embedding_path):
+    def load_weight_embedding(self, dataset_dir: str = 'data/flickr8k'):
+        embedding_matrix_path = osp.join(dataset_dir, 'embedding_matrix.pkl')
+
+        if not osp.exists(embedding_matrix_path):
             raise ValueError(
                 "weight_embedding_path is not exist. Please check path or run datamodule to prepare"
             )
 
-        with open(weight_embedding_path, "rb") as file:
+        with open(embedding_matrix_path, "rb") as file:
             embedding_matrix = load(file)
         print('Embedding_matrix:', embedding_matrix.shape)
         return embedding_matrix

@@ -152,4 +152,4 @@ configs/local/default.yaml
 
 # Aim logging
 .aim
-glove
+train.sh

@@ -17,7 +17,8 @@ class Glove_RNN(nn.Module):
         super().__init__()
 
         self.embed = nn.Embedding.from_pretrained(
-            self.load_weight_embedding(dataset_dir))
+            self.load_weight_embedding(dataset_dir), freeze=True)
+
         self.dropout = nn.Dropout(p=0.5)
         self.rnn = nn.RNN(input_size=embed_dim,
                           hidden_size=text_features,

@@ -129,7 +129,7 @@ class ImageCaptionDataModule(L.LightningDataModule):
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=False,
+            shuffle=True,
         )
 
     def test_dataloader(self):
@@ -138,7 +138,7 @@ class ImageCaptionDataModule(L.LightningDataModule):
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=False,
+            shuffle=True,
         )
 
     def teardown(self, stage: Optional[str] = None):

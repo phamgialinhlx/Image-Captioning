@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional, Tuple
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 
+import wandb
 import torch
 from lightning import LightningModule
 from torchmetrics import MaxMetric, MeanMetric
@@ -56,7 +57,11 @@ class ImageCaptionModule(LightningModule):
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
 
-        self.images = None
+        self.images = {
+            'train': [],
+            'valid': [],
+            'test': [],
+        }
 
     def forward(self, image: torch.Tensor,
                 sequence: torch.Tensor) -> torch.Tensor:
@@ -123,7 +128,7 @@ class ImageCaptionModule(LightningModule):
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
-        pass
+        self.inference(mode='train')
 
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor],
                         batch_idx: int) -> None:
@@ -149,13 +154,6 @@ class ImageCaptionModule(LightningModule):
                  on_epoch=True,
                  prog_bar=True)
 
-    def on_validation_batch_end(self,
-                                outputs: STEP_OUTPUT | None,
-                                batch: Any,
-                                batch_idx: int,
-                                dataloader_idx: int = 0) -> None:
-        self.images = batch[0]
-
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
         acc = self.val_acc.compute()  # get current val acc
@@ -167,12 +165,7 @@ class ImageCaptionModule(LightningModule):
                  sync_dist=True,
                  prog_bar=True)
 
-        image = self.images[:1]
-        predict = self.net.greedySearch(image)
-        self.logger.log_image(key='val/image', images=[image])
-        self.logger.log_text(key='val/caption',
-                             columns=[predict],
-                             data=[[predict]])
+        self.inference(mode='val')
 
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor],
                   batch_idx: int) -> None:
@@ -200,7 +193,7 @@ class ImageCaptionModule(LightningModule):
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
-        pass
+        self.inference(mode='test')
 
     def setup(self, stage: str) -> None:
         """Lightning hook that is called at the beginning of fit (train + validate), validate,
@@ -237,6 +230,38 @@ class ImageCaptionModule(LightningModule):
                 },
             }
         return {"optimizer": optimizer}
+
+    def on_train_batch_end(self, outputs: STEP_OUTPUT, batch: Any,
+                           batch_idx: int) -> None:
+        self.store_data(batch, mode='train')
+
+    def on_validation_batch_end(self,
+                                outputs: STEP_OUTPUT | None,
+                                batch: Any,
+                                batch_idx: int,
+                                dataloader_idx: int = 0) -> None:
+        self.store_data(batch, mode='val')
+
+    def on_test_batch_end(self,
+                          outputs: STEP_OUTPUT | None,
+                          batch: Any,
+                          batch_idx: int,
+                          dataloader_idx: int = 0) -> None:
+        self.store_data(batch, mode='test')
+
+    def store_data(self, batch: Any, mode: str):
+        self.images[mode] = batch[0]
+
+    def inference(self, mode: str):
+        data = []
+        for img in self.images[mode][:4]:
+            pred = self.net.greedySearch(img.unsqueeze(0))
+            img = img * 0.5 + 0.5
+            data.append([wandb.Image(img), pred])
+
+        self.logger.log_table(key=f'{mode}/infer',
+                              columns=['image', 'caption'],
+                              data=data)
 
 
 if __name__ == "__main__":
