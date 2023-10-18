@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional, List
 
 import torch
 import imageio
@@ -9,58 +9,114 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from torch.nn.utils.rnn import pad_sequence
 
+
 class PreprocessingDataset(Dataset):
     # glove: wget https://nlp.stanford.edu/data/glove.6B.zip
-    def __init__(self, 
-                 dataset: Dataset,
-                 word_count_threshold: int = 10,
-                 vocab: List[str] = None,
-                 max_length: int = None,
-                 save_weight_embedding: bool = False,
+    glove_dir = 'data/glove'
+
+    def __init__(self,
+                 dataset: Dataset = None,
+                 dataset_dir: str = None,
                  transform: Optional[T.Compose] = None):
-        
-        if vocab is None:
-            word_counts = {}  # a dict : { word : number of appearances}
-            max_length = 0
-            for i in range(len(dataset)):
-                _, captions = dataset[i]
-                for caption in captions:
-                    words = caption.split()
-                    max_length = len(words) if (max_length < len(words)) else max_length
-                    for w in words:
-                        try:
-                            word_counts[w] += 1
-                        except:
-                            word_counts[w] = 1
-                            
-            self.vocab = [w for w in word_counts if word_counts[w] >= word_count_threshold]
-        else: self.vocab = vocab
 
-        self.i2w, self.w2i, id = {}, {}, 1
-        for w in self.vocab:
-            self.w2i[w] = id
-            self.i2w[id] = w
-            id += 1
+        captions = sum([dataset[i][1] for i in range(len(dataset))], [])
+        max_length, _, word2id = prepare_dataset(captions,
+                                                 dataset_dir,
+                                                 glove_dir=self.glove_dir)
 
-        if save_weight_embedding:
-            self.save_weight_embedding(glove_dir = 'glove')
+        self.preprocessed_dataset = []
+        for i in range(len(dataset)):
+            img_path, captions = dataset[i]
+            for caption in captions:
+                seq = [
+                    word2id[word] for word in caption.split()
+                    if word in word2id
+                ]
 
-        self.dataset = dataset
-        self.max_length = max_length
+                for i in range(1, len(seq)):
+                    input, target = seq[:i], seq[i]
+                    input = pad_sequence(
+                        [torch.tensor(input),
+                         torch.zeros(max_length)])[:, 0]
+                    self.preprocessed_dataset.append([img_path, input, target])
 
         if transform is not None:
             self.transform = transform
         else:
             self.transform = T.Compose([
                 T.ToTensor(),
-                T.Resize([299, 299], antialias=True), # using inception_v3 to encode image
+                T.Resize([299, 299],
+                         antialias=True),  # using inception_v3 to encode image
+                T.Normalize(0.5, 0.5)
             ])
 
-    def save_weight_embedding(self, glove_dir, embedding_dim = 200):
-        embedding_matrix_path = osp.join(glove_dir, 'embedding_matrix.pkl')
-        if osp.exists(embedding_matrix_path):
-            return
-        
+    def __len__(self):
+        return len(self.preprocessed_dataset)
+
+    def __getitem__(self, idx):
+        img_path, sequence, target = self.preprocessed_dataset[idx]
+
+        while not osp.exists(img_path):
+            idx = (idx + 1) % len(self.preprocessed_dataset)
+            img_path, sequence, target = self.preprocessed_dataset[idx]
+
+        image = imageio.v2.imread(img_path)
+        image = self.transform(image)
+        return image, sequence, target
+
+
+def prepare_dataset(captions: List[str],
+                    dataset_dir: str,
+                    glove_dir: str,
+                    word_count_threshold: int = 10,
+                    embedding_dim: int = 200) -> None:
+
+    embedding_matrix_path = osp.join(dataset_dir, 'embedding_matrix.pkl')
+    id2word_path = osp.join(dataset_dir, 'id2word.pkl')
+    word2id_path = osp.join(dataset_dir, 'word2id.pkl')
+    max_length_path = osp.join(dataset_dir, 'max_length.pkl')
+    vocab_size_path = osp.join(dataset_dir, 'vocab_size.pkl')
+
+    if osp.exists(embedding_matrix_path):
+        with open(embedding_matrix_path, "rb") as file:
+            embedding_matrix = load(file)
+
+        with open(id2word_path, "rb") as file:
+            id2word = load(file)
+
+        with open(word2id_path, "rb") as file:
+            word2id = load(file)
+
+        with open(max_length_path, "rb") as file:
+            max_length = load(file)
+
+        with open(vocab_size_path, "rb") as file:
+            vocab_size = load(file)
+
+    else:
+        word_counts = {}  # a dict : { word : number of appearances}
+        max_length = 0
+        for caption in captions:
+            words = caption.split()
+            max_length = len(words) if (max_length
+                                        < len(words)) else max_length
+            for w in words:
+                try:
+                    word_counts[w] += 1
+                except:
+                    word_counts[w] = 1
+
+        vocab = ['<pad>'] + [
+            w for w in word_counts if word_counts[w] >= word_count_threshold
+        ]
+        vocab_size = len(vocab)
+
+        id2word, word2id = {}, {}
+        for id, word in enumerate(vocab):
+            word2id[word] = id
+            id2word[id] = word
+            id += 1
+
         file = open(osp.join(glove_dir, 'glove.6B.200d.txt'), encoding="utf-8")
         embeddings_index = {}
         for line in file:
@@ -69,56 +125,53 @@ class PreprocessingDataset(Dataset):
             coefs = np.asarray(values[1:], dtype='float32')
             coefs = torch.from_numpy(coefs)
             embeddings_index[word] = coefs
-        print('Found %s word vectors.' % len(embeddings_index))
 
-        print(embeddings_index['unknown'])
-        print(embeddings_index[' '])
-
-        embedding_matrix = torch.zeros((self.vocab_size(), embedding_dim))
-        for word, i in self.w2i.items():
+        embedding_matrix = torch.zeros((len(vocab), embedding_dim))
+        for word, i in word2id.items():
             embedding_vector = embeddings_index.get(word)
             if embedding_vector is not None:
                 # Words not found in the embedding index will be all zeros
                 embedding_matrix[i] = embedding_vector
-        print('Embedding matrix:', embedding_matrix.shape)
 
         # Open a file for writing with binary mode
         with open(embedding_matrix_path, "wb") as file:
             dump(embedding_matrix, file)
-    
-    def __len__(self):
-        return len(self.dataset)
-    
-    def vocab_size(self):
-        return len(self.vocab) + 1 # add padding
-    
-    def __getitem__(self, idx):
-        img_path, captions = self.dataset[idx]
 
-        sequences = []
-        for caption in captions:
-            seq = [self.w2i[word] for word in caption.split(' ') if word in self.w2i]
-            seq = pad_sequence([torch.tensor(seq), torch.zeros(self.max_length)])
-            sequences.append(seq[:, 0])
-        sequences = torch.stack(sequences, dim=0)
+        with open(id2word_path, "wb") as file:
+            dump(id2word, file)
 
-        image = imageio.v2.imread(img_path)
-        image = self.transform(image)
-        return image, sequences
+        with open(word2id_path, "wb") as file:
+            dump(word2id, file)
+
+        with open(max_length_path, "wb") as file:
+            dump(max_length, file)
+
+        with open(max_length_path, "wb") as file:
+            dump(max_length, file)
+
+        with open(vocab_size_path, "wb") as file:
+            dump(vocab_size, file)
+
+    print('Embedding matrix:', embedding_matrix.shape)
+    print('Max length of sequence:', max_length)
+    print('Vocab size:', vocab_size)
+
+    return max_length, id2word, word2id
+
 
 if __name__ == "__main__":
-    import pyrootutils
-    pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
+    import rootutils
+    rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
     from src.data.dataset import FlickrDataset8k
 
     dataset = FlickrDataset8k()
-    preprocessing_dataset = PreprocessingDataset(dataset, 
-                                                 save_weight_embedding=True)
-    image, captions = preprocessing_dataset[0]
-    print(image.shape)
-    print(captions.shape)
+    preprocessing_dataset = PreprocessingDataset(dataset,
+                                                 dataset_dir='data/flickr8k')
+    print('|' * 60)
+    print('Length Dataset:', len(dataset))
+    print('Length Preprocessing Dataset:', len(preprocessing_dataset))
 
-    # Open a file for reading with binary mode
-    with open("glove/embedding_matrix.pkl", "rb") as file:
-        embedding_matrix = load(file)
-        print('Embedding_matrix:', embedding_matrix.shape)
+    image, input, target = preprocessing_dataset[0]
+    print(image.shape)
+    print(input.shape)
+    print(target.shape)

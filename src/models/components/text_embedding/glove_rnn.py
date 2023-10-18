@@ -1,38 +1,52 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
+from pickle import load
+import os.path as osp
+
 
 class Glove_RNN(nn.Module):
 
-    def __init__(self, 
-                 vocab_size: int,
-                 embed_dim: int,
-                 hidden_size: int,
-                 n_layer_rnn: int = 1,
-                 ) -> None:
+    def __init__(
+        self,
+        embed_dim: int = 200,
+        text_features: int = 256,
+        n_layer_rnn: int = 1,
+        dataset_dir: str = 'data/flickr8k',
+    ) -> None:
         super().__init__()
 
-        self.embed = nn.Embedding(num_embeddings=vocab_size,
-                                  embedding_dim=embed_dim)
+        self.embed = nn.Embedding.from_pretrained(
+            self.load_weight_embedding(dataset_dir))
         self.dropout = nn.Dropout(p=0.5)
         self.rnn = nn.RNN(input_size=embed_dim,
-                          hidden_size=hidden_size,
+                          hidden_size=text_features,
                           num_layers=n_layer_rnn,
-                          batch_first=False)
-        
+                          batch_first=True)
+
+    def load_weight_embedding(self, dataset_dir: str = 'data/flickr8k'):
+        embedding_matrix_path = osp.join(dataset_dir, 'embedding_matrix.pkl')
+
+        if not osp.exists(embedding_matrix_path):
+            raise ValueError(
+                "weight_embedding_path is not exist. Please check path or run datamodule to prepare"
+            )
+
+        with open(embedding_matrix_path, "rb") as file:
+            embedding_matrix = load(file)
+        print('Embedding_matrix:', embedding_matrix.shape)
+        return embedding_matrix
 
     def forward(self, sequence: Tensor) -> Tensor:
         out = self.embed(sequence)
         out = self.dropout(out)
-        out, _ = self.rnn(out) # return output and hidden state
-        return out[-1] # only get 
+        out, _ = self.rnn(out)  # return output and hidden state
+        return out[:, -1]  # only get the last
+
 
 if __name__ == "__main__":
-    net = Glove_RNN(vocab_size=2005, 
-                    embed_dim=128,
-                    hidden_size=256,
-                    n_layer_rnn=2)
-    
-    x = torch.randint(0, 100, (20, 2))
+    net = Glove_RNN()
+
+    x = torch.randint(0, 100, (2, 20))
     out = net(x)
-    print(out.shape)
+    print(x.shape, out.shape)

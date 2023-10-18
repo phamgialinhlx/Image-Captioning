@@ -1,17 +1,18 @@
 from typing import Any, Dict, Optional, Tuple
 
 import torch
-import pyrootutils
-import pytorch_lightning as pl
+import rootutils
+import lightning as L
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import transforms as T
 
-pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
+rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.data.dataset import init_dataset
 from src.data.preprocessing_dataset import PreprocessingDataset
 
-class ImageCaptionDataModule(pl.LightningDataModule):
+
+class ImageCaptionDataModule(L.LightningDataModule):
     """
     A DataModule implements 5 key methods:
 
@@ -87,16 +88,31 @@ class ImageCaptionDataModule(pl.LightningDataModule):
                 generator=torch.Generator().manual_seed(42),
             )
 
-            print('Train-Val-Test:', len(self.data_train), len(self.data_val), len(self.data_test))
-            self.data_train = PreprocessingDataset(dataset=self.data_train,
-                                                   save_weight_embedding=True,
-                                                   transform=self.hparams.transform_train)
-            self.data_val = PreprocessingDataset(dataset=self.data_val, 
-                                                 vocab=self.data_train.vocab,
-                                                 transform=self.hparams.transform_val)
-            self.data_test = PreprocessingDataset(dataset=self.data_test, 
-                                                  vocab=self.data_train.vocab,
-                                                  transform=self.hparams.transform_val)
+            print('Number of sequences in Train-Val-Test Dataset:',
+                  len(self.data_train), len(self.data_val),
+                  len(self.data_test))
+
+            print('=' * 10, 'preprocessing train dataset', '=' * 10)
+            self.data_train = PreprocessingDataset(
+                dataset=self.data_train,
+                dataset_dir=dataset.dataset_dir,
+                transform=self.hparams.transform_train)
+
+            print('=' * 10, 'validation train dataset', '=' * 10)
+            self.data_val = PreprocessingDataset(
+                dataset=self.data_val,
+                dataset_dir=dataset.dataset_dir,
+                transform=self.hparams.transform_val)
+
+            print('=' * 10, 'test train dataset', '=' * 10)
+            self.data_test = PreprocessingDataset(
+                dataset=self.data_test,
+                dataset_dir=dataset.dataset_dir,
+                transform=self.hparams.transform_val)
+
+            print('Number of sequences in Train-Val-Test PreprocessedDataset:',
+                  len(self.data_train), len(self.data_val),
+                  len(self.data_test))
 
     def train_dataloader(self):
         return DataLoader(
@@ -139,11 +155,39 @@ class ImageCaptionDataModule(pl.LightningDataModule):
 
 
 if __name__ == "__main__":
-    datamodule = ImageCaptionDataModule()
-    datamodule.setup()
-    train_dataloader = datamodule.train_dataloader()
-    print('train_dataloader:', len(train_dataloader))
+    import hydra
+    from omegaconf import DictConfig
 
-    batch = next(iter(train_dataloader))
-    images, captions = batch
-    print(images.shape, captions.shape)
+    root = rootutils.find_root(search_from=__file__,
+                                 indicator=".project-root")
+    print("root: ", root)
+    config_path = str(root / "configs" / "data")
+
+    @hydra.main(version_base=None,
+                config_path=config_path,
+                config_name="flickr8k.yaml")
+    def main(cfg: DictConfig):
+        print(cfg)
+
+        datamodule: ImageCaptionDataModule = hydra.utils.instantiate(
+            cfg, data_dir=f"{root}/data")
+        datamodule.setup()
+
+        train_dataloader = datamodule.train_dataloader()
+        print('train_dataloader:', len(train_dataloader))
+
+        batch = next(iter(train_dataloader))
+        image, input, target = batch
+        print(image.shape, input.shape, target.shape)
+
+        import matplotlib.pyplot as plt
+        from torchvision.utils import make_grid
+        mean = 0.5
+        std = 0.5
+        image = ((image * std + mean))
+        image = make_grid(image[:25], nrow=5)
+
+        plt.imshow(image.moveaxis(0, 2))
+        plt.show()
+
+    main()
