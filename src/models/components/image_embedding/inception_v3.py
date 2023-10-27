@@ -14,7 +14,8 @@ class InceptionNet(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.inception_encoder = inception_v3(pretrained=True)
+        self.inception_encoder = inception_v3(pretrained=True,
+                                              transform_input=True)
         self.inception_encoder.fc = torch.nn.Identity()
         self.inception_encoder.requires_grad_(False)
 
@@ -34,14 +35,14 @@ class InceptionNet(nn.Module):
             embed_vector: batch, image_features
         """
 
-        # self.inception_encoder.eval()
+        self.inception_encoder.eval()
         # if in train mode, inception have batch_normalization so batch_size > 1
 
         embed = self.inception_encoder(images)
         if isinstance(embed, InceptionOutputs):
             embed = embed[0]
 
-        embed = self.dropout(embed)
+        # embed = self.dropout(embed)
         embed = self.relu(self.linear(embed))
         return embed
 

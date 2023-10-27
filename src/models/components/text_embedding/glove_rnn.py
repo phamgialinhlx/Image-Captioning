@@ -50,7 +50,7 @@ class Glove_RNN(nn.Module):
             embed_vector: batch, text_features
         """
         out = self.embed(sequence)
-        out = self.dropout(out)
+        # out = self.dropout(out)
         out, _ = self.rnn(out)  # return output and hidden state
         return out[:, -1]  # only get the last
 
