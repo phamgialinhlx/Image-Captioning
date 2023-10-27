@@ -40,6 +40,7 @@ class ImageCaptionNet(nn.Module):
         embed = image_embed + sequence_embed
         out = self.relu(self.linear_1(embed))
         # out = self.softmax(self.linear_2(out))
+        out = self.linear_2(out)
         return out
 
     def prepare(self, dataset_dir: str):
