@@ -1,0 +1,40 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=lstm
+
+defaults:
+  - override /data: flickr8k
+  - override /model: image_caption
+  - override /callbacks: default
+  - override /trainer: gpu
+  - override /logger: wandb
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+seed: 12345
+
+data:
+  batch_size: 512
+  num_workers: 4
+
+trainer:
+  max_epochs: 10
+
+model:
+  net:
+    text_embed_net:
+      _target_: src.models.components.text_embedding.Glove_LSTM
+      embed_dim: 200
+      drop_rate: 0.5
+      text_features: ${model.net.features}
+      n_layer_lstm: 1
+      dataset_dir: ${model.dataset_dir}
+
+logger:
+  wandb:
+    name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    project: "image_caption"
+    tags: ${tags}
+    group: ${data.dataset_name}
