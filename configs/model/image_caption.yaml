@@ -17,12 +17,13 @@ net:
   _target_: src.models.components.ImageCaptionNet
   image_embed_net:
     _target_: src.models.components.image_embedding.InceptionNet
-    image_features: ${model.net.features}
     drop_rate: 0.5
-    device: "cuda"
+    image_features: ${model.net.features}
 
   text_embed_net:
     _target_: src.models.components.text_embedding.Glove_RNN
+    embed_dim: 200
+    drop_rate: 0.5
     text_features: ${model.net.features}
     n_layer_rnn: 1
     dataset_dir: ${model.dataset_dir}

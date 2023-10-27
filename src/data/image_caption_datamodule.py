@@ -4,7 +4,6 @@ import torch
 import rootutils
 import lightning as L
 from torch.utils.data import DataLoader, Dataset, random_split
-from torchvision import transforms as T
 
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
@@ -33,7 +32,7 @@ class ImageCaptionDataModule(L.LightningDataModule):
             # clean up after fit or test
 
     This allows you to share a full dataset without explaining how to download,
-    split, transform and process the data.
+    split,  process the data.
 
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
@@ -43,8 +42,6 @@ class ImageCaptionDataModule(L.LightningDataModule):
         self,
         data_dir: str = "./data",
         train_val_test_split: Tuple[float, float, float] = (0.8, 0.1, 0.1),
-        transform_train: Optional[T.Compose] = None,
-        transform_val: Optional[T.Compose] = None,
         batch_size: int = 64,
         num_workers: int = 2,
         pin_memory: bool = False,
@@ -94,21 +91,15 @@ class ImageCaptionDataModule(L.LightningDataModule):
 
             print('=' * 10, 'preprocessing train dataset', '=' * 10)
             self.data_train = PreprocessingDataset(
-                dataset=self.data_train,
-                dataset_dir=dataset.dataset_dir,
-                transform=self.hparams.transform_train)
+                dataset=self.data_train, dataset_dir=dataset.dataset_dir)
 
             print('=' * 10, 'validation train dataset', '=' * 10)
             self.data_val = PreprocessingDataset(
-                dataset=self.data_val,
-                dataset_dir=dataset.dataset_dir,
-                transform=self.hparams.transform_val)
+                dataset=self.data_val, dataset_dir=dataset.dataset_dir)
 
             print('=' * 10, 'test train dataset', '=' * 10)
             self.data_test = PreprocessingDataset(
-                dataset=self.data_test,
-                dataset_dir=dataset.dataset_dir,
-                transform=self.hparams.transform_val)
+                dataset=self.data_test, dataset_dir=dataset.dataset_dir)
 
             print('Number of sequences in Train-Val-Test PreprocessedDataset:',
                   len(self.data_train), len(self.data_val),
@@ -158,8 +149,7 @@ if __name__ == "__main__":
     import hydra
     from omegaconf import DictConfig
 
-    root = rootutils.find_root(search_from=__file__,
-                                 indicator=".project-root")
+    root = rootutils.find_root(search_from=__file__, indicator=".project-root")
     print("root: ", root)
     config_path = str(root / "configs" / "data")
 
@@ -182,9 +172,6 @@ if __name__ == "__main__":
 
         import matplotlib.pyplot as plt
         from torchvision.utils import make_grid
-        mean = 0.5
-        std = 0.5
-        image = ((image * std + mean))
         image = make_grid(image[:25], nrow=5)
 
         plt.imshow(image.moveaxis(0, 2))

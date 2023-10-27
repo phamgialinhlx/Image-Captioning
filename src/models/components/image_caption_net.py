@@ -37,8 +37,8 @@ class ImageCaptionNet(nn.Module):
     def forward(self, image: Tensor, sequence: Tensor) -> Tensor:
         image_embed = self.image_embed_net(image)
         sequence_embed = self.text_embed_net(sequence)
-        input = image_embed + sequence_embed
-        out = self.relu(self.linear_1(input))
+        embed = image_embed + sequence_embed
+        out = self.relu(self.linear_1(embed))
         out = self.softmax(self.linear_2(out))
         return out
 
@@ -76,11 +76,11 @@ class ImageCaptionNet(nn.Module):
             sequence = pad_sequence(
                 [torch.tensor(sequence),
                  torch.zeros(self.max_length)])[:, 0]
-            
+
             sequence = sequence.unsqueeze(0).to(image.device)
 
             pred = self(image, sequence)
-            pred = torch.argmax(pred, dim = 1)
+            pred = torch.argmax(pred, dim=1)
             word = self.id2word[pred.cpu().item()]
             in_text += ' ' + word
             if word == 'endseq':

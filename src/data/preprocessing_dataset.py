@@ -7,17 +7,13 @@ import os.path as osp
 from pickle import dump, load
 from torch.utils.data import Dataset
 from torchvision import transforms as T
-from torch.nn.utils.rnn import pad_sequence
 
 
 class PreprocessingDataset(Dataset):
     # glove: wget https://nlp.stanford.edu/data/glove.6B.zip
     glove_dir = 'data/glove'
 
-    def __init__(self,
-                 dataset: Dataset = None,
-                 dataset_dir: str = None,
-                 transform: Optional[T.Compose] = None):
+    def __init__(self, dataset: Dataset = None, dataset_dir: str = None):
 
         captions = sum([dataset[i][1] for i in range(len(dataset))], [])
         max_length, _, word2id = prepare_dataset(captions,
@@ -35,20 +31,16 @@ class PreprocessingDataset(Dataset):
 
                 for i in range(1, len(seq)):
                     input, target = seq[:i], seq[i]
-                    input = pad_sequence(
-                        [torch.tensor(input),
-                         torch.zeros(max_length)])[:, 0]
+                    input = torch.nn.functional.pad(
+                        torch.tensor(input), (0, max_length - len(input)),
+                        value=0)
                     self.preprocessed_dataset.append([img_path, input, target])
 
-        if transform is not None:
-            self.transform = transform
-        else:
-            self.transform = T.Compose([
-                T.ToTensor(),
-                T.Resize([299, 299],
-                         antialias=True),  # using inception_v3 to encode image
-                T.Normalize(0.5, 0.5)
-            ])
+        self.transform = T.Compose([
+            T.ToTensor(),
+            T.Resize([299, 299],
+                     antialias=True),  # using inception_v3 to encode image
+        ])
 
     def __len__(self):
         return len(self.preprocessed_dataset)
@@ -172,6 +164,7 @@ if __name__ == "__main__":
     print('Length Preprocessing Dataset:', len(preprocessing_dataset))
 
     image, input, target = preprocessing_dataset[0]
-    print(image.shape)
-    print(input.shape)
-    print(target.shape)
+    print('Image shape:', image.shape)
+    print('Input:', input)
+    print('Input shape:', input.shape)
+    print('Target:', target)

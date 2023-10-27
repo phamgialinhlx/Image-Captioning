@@ -128,6 +128,7 @@ class ImageCaptionModule(LightningModule):
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
+        return
         self.inference(mode='train')
 
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor],
@@ -256,7 +257,6 @@ class ImageCaptionModule(LightningModule):
         data = []
         for img in self.images[mode][:4]:
             pred = self.net.greedySearch(img.unsqueeze(0))
-            img = img * 0.5 + 0.5
             data.append([wandb.Image(img), pred])
 
         self.logger.log_table(key=f'{mode}/infer',

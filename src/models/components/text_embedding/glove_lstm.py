@@ -10,6 +10,7 @@ class Glove_LSTM(nn.Module):
     def __init__(
         self,
         embed_dim: int = 200,
+        drop_rate: float = 0.5,
         text_features: int = 256,
         n_layer_lstm: int = 1,
         dataset_dir: str = 'data/flickr8k',
@@ -17,9 +18,11 @@ class Glove_LSTM(nn.Module):
         super().__init__()
 
         self.embed = nn.Embedding.from_pretrained(
-            self.load_weight_embedding(dataset_dir), freeze=True)
+            self.load_weight_embedding(dataset_dir),
+            freeze=True,
+            padding_idx=0)
 
-        self.dropout = nn.Dropout(p=0.5)
+        self.dropout = nn.Dropout(p=drop_rate)
         self.lstm = nn.LSTM(input_size=embed_dim,
                             hidden_size=text_features,
                             num_layers=n_layer_lstm,
@@ -42,12 +45,12 @@ class Glove_LSTM(nn.Module):
         out = self.embed(sequence)
         out = self.dropout(out)
         out, _ = self.lstm(out)  # return output and hidden state
-        return out[-1]  # only get
+        return out[:, -1]  # only get
 
 
 if __name__ == "__main__":
     net = Glove_LSTM()
 
-    x = torch.randint(0, 100, (20, 2))
+    x = torch.randint(0, 100, (2, 20))
     out = net(x)
-    print(out.shape)
+    print(x.shape, out.shape)
