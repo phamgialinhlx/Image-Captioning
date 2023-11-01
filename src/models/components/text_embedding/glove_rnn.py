@@ -15,6 +15,15 @@ class Glove_RNN(nn.Module):
         n_layer_rnn: int = 1,
         dataset_dir: str = 'data/flickr8k',
     ) -> None:
+        """_summary_
+
+        Args:
+            embed_dim (int, optional): _description_. Defaults to 200.
+            drop_rate (float, optional): _description_. Defaults to 0.5.
+            text_features (int, optional): _description_. Defaults to 256.
+            n_layer_rnn (int, optional): _description_. Defaults to 1.
+            dataset_dir (str, optional): _description_. Defaults to 'data/flickr8k'.
+        """
         super().__init__()
 
         self.embed = nn.Embedding.from_pretrained(
@@ -22,7 +31,7 @@ class Glove_RNN(nn.Module):
             freeze=True,
             padding_idx=0)
 
-        self.dropout = nn.Dropout(p=drop_rate)
+        # self.dropout = nn.Dropout(p=drop_rate)
         self.rnn = nn.RNN(input_size=embed_dim,
                           hidden_size=text_features,
                           num_layers=n_layer_rnn,
@@ -42,13 +51,15 @@ class Glove_RNN(nn.Module):
         return embedding_matrix
 
     def forward(self, sequence: Tensor) -> Tensor:
+        """_summary_
+
+        Args:
+            sequence (Tensor): (batch, max_length)
+
+        Returns:
+            Tensor: (batch, text_features)
         """
-        Input:
-            sequence: batch, max_length
-        
-        Output:
-            embed_vector: batch, text_features
-        """
+
         out = self.embed(sequence)
         # out = self.dropout(out)
         out, _ = self.rnn(out)  # return output and hidden state

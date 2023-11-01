@@ -16,8 +16,8 @@ defaults:
 seed: 12345
 
 data:
-  batch_size: 512
-  num_workers: 4
+  batch_size: 8
+  num_workers: 12
 
 trainer:
   max_epochs: 10

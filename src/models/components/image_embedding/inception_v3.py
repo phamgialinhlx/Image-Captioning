@@ -12,6 +12,12 @@ class InceptionNet(nn.Module):
         drop_rate: float = 0.5,
         image_features: int = 256,
     ) -> None:
+        """_summary_
+
+        Args:
+            drop_rate (float, optional): _description_. Defaults to 0.5.
+            image_features (int, optional): _description_. Defaults to 256.
+        """
         super().__init__()
 
         self.inception_encoder = inception_v3(pretrained=True,
@@ -27,12 +33,13 @@ class InceptionNet(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, images: Tensor) -> Tensor:
-        """
-        Input:
-            images: batch, c, w, h
-        
-        Output:
-            embed_vector: batch, image_features
+        """_summary_
+
+        Args:
+            images (Tensor): (batch, c, w, h)
+
+        Returns:
+            Tensor: (batch, image_features)
         """
 
         self.inception_encoder.eval()

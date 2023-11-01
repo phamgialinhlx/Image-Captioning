@@ -167,8 +167,8 @@ if __name__ == "__main__":
         print('train_dataloader:', len(train_dataloader))
 
         batch = next(iter(train_dataloader))
-        image, input, target = batch
-        print(image.shape, input.shape, target.shape)
+        image, sequence = batch
+        print(image.shape, sequence.shape)
 
         import matplotlib.pyplot as plt
         from torchvision.utils import make_grid

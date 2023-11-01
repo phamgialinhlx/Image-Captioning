@@ -9,12 +9,14 @@ from torchmetrics.classification.accuracy import Accuracy
 from pickle import load
 import os.path as osp
 
+from src.models.components import ImageCaptionNet
+
 
 class ImageCaptionModule(LightningModule):
 
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: ImageCaptionNet,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
         dataset_dir: str = 'data/flickr8k',
@@ -41,8 +43,13 @@ class ImageCaptionModule(LightningModule):
             raise ValueError(
                 "weight_embedding_path is not exist. Please check path or run datamodule to prepare"
             )
+
         with open(vocab_size_path, "rb") as file:
             vocab_size = load(file)
+
+        id2word_path = osp.join(dataset_dir, 'id2word.pkl')
+        with open(id2word_path, "rb") as file:
+            self.id2word = load(file)
 
         # metric objects for calculating and averaging accuracy across batches
         self.train_acc = Accuracy(task="multiclass", num_classes=vocab_size)
@@ -57,7 +64,7 @@ class ImageCaptionModule(LightningModule):
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
 
-        self.images = {
+        self.batch = {
             'train': [],
             'valid': [],
             'test': [],
@@ -92,11 +99,30 @@ class ImageCaptionModule(LightningModule):
             - A tensor of predictions.
             - A tensor of target labels.
         """
-        image, sequence, y = batch
-        logits = self.forward(image, sequence)
-        loss = self.criterion(logits, y)
+        image, sequence = batch
+
+        images = []
+        sequences = []
+        targets = []
+
+        for i in range(1, sequence.shape[1]):
+            source, target = sequence[:, :i], sequence[:, i]
+            source = torch.nn.functional.pad(source,
+                                             (0, sequence.shape[1] - i),
+                                             value=0)
+
+            images.append(image)
+            sequences.append(source)
+            targets.append(target)
+
+        images = torch.cat(images, dim=0).to(image.device)
+        sequences = torch.cat(sequences, dim=0).to(image.device)
+        targets = torch.cat(targets, dim=0).to(image.device)
+
+        logits = self.forward(images, sequences)
+        loss = self.criterion(logits, targets)
         preds = torch.argmax(logits, dim=1)
-        return loss, preds, y
+        return loss, preds, targets
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor],
                       batch_idx: int) -> torch.Tensor:
@@ -251,16 +277,18 @@ class ImageCaptionModule(LightningModule):
         self.store_data(batch, mode='test')
 
     def store_data(self, batch: Any, mode: str):
-        self.images[mode] = batch[0]
+        self.batch[mode] = batch
 
-    def inference(self, mode: str):
+    def inference(self, mode: str, dataset_dir='data/flickr8k'):
         data = []
-        for img in self.images[mode][:4]:
+        for img, seq in zip(self.batch[mode][0], self.batch[mode][1]):
+            caption = [self.id2word[id.cpu().item()] for id in seq if id != 0]
+            caption = ' '.join(caption[1:-1])
             pred = self.net.greedySearch(img.unsqueeze(0))
-            data.append([wandb.Image(img), pred])
+            data.append([wandb.Image(img), pred, caption])
 
         self.logger.log_table(key=f'{mode}/infer',
-                              columns=['image', 'caption'],
+                              columns=['image', 'pred', 'caption'],
                               data=data)
 
 

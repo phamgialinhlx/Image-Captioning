@@ -21,6 +21,14 @@ class ImageCaptionNet(nn.Module):
         features: int = 256,
         dataset_dir: str = 'data/flickr8k',
     ) -> None:
+        """_summary_
+
+        Args:
+            image_embed_net (_type_): _description_
+            text_embed_net (_type_): _description_
+            features (int, optional): _description_. Defaults to 256.
+            dataset_dir (str, optional): _description_. Defaults to 'data/flickr8k'.
+        """
         super().__init__()
 
         self.text_embed_net = text_embed_net
@@ -35,6 +43,15 @@ class ImageCaptionNet(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, image: Tensor, sequence: Tensor) -> Tensor:
+        """_summary_
+
+        Args:
+            image (Tensor): (batch, c, w, h)
+            sequence (Tensor): (batch, max_length)
+
+        Returns:
+            Tensor: (batch, vocab_size)
+        """
         image_embed = self.image_embed_net(image)
         sequence_embed = self.text_embed_net(sequence)
         embed = image_embed + sequence_embed
@@ -44,6 +61,17 @@ class ImageCaptionNet(nn.Module):
         return out
 
     def prepare(self, dataset_dir: str):
+        """_summary_
+
+        Args:
+            dataset_dir (str): _description_
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            _type_: _description_
+        """
         id2word_path = osp.join(dataset_dir, 'id2word.pkl')
         word2id_path = osp.join(dataset_dir, 'word2id.pkl')
         max_length_path = osp.join(dataset_dir, 'max_length.pkl')
@@ -69,6 +97,14 @@ class ImageCaptionNet(nn.Module):
         return id2word, word2id, max_length, vocab_size
 
     def greedySearch(self, image: Tensor):
+        """_summary_
+
+        Args:
+            image (Tensor): _description_
+
+        Returns:
+            _type_: _description_
+        """
         in_text = 'startseq'
         for i in range(self.max_length):
             sequence = [

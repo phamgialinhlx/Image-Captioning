@@ -24,17 +24,15 @@ class PreprocessingDataset(Dataset):
         for i in range(len(dataset)):
             img_path, captions = dataset[i]
             for caption in captions:
-                seq = [
+                sequence = [
                     word2id[word] for word in caption.split()
                     if word in word2id
                 ]
 
-                for i in range(1, len(seq)):
-                    input, target = seq[:i], seq[i]
-                    input = torch.nn.functional.pad(
-                        torch.tensor(input), (0, max_length - len(input)),
-                        value=0)
-                    self.preprocessed_dataset.append([img_path, input, target])
+                sequence = torch.nn.functional.pad(
+                    torch.tensor(sequence), (0, max_length - len(sequence)),
+                    value=0)
+                self.preprocessed_dataset.append([img_path, sequence])
 
         self.transform = T.Compose([
             T.ToTensor(),
@@ -46,15 +44,15 @@ class PreprocessingDataset(Dataset):
         return len(self.preprocessed_dataset)
 
     def __getitem__(self, idx):
-        img_path, sequence, target = self.preprocessed_dataset[idx]
+        img_path, sequence = self.preprocessed_dataset[idx]
 
         while not osp.exists(img_path):
             idx = (idx + 1) % len(self.preprocessed_dataset)
-            img_path, sequence, target = self.preprocessed_dataset[idx]
+            img_path, sequence = self.preprocessed_dataset[idx]
 
         image = imageio.v2.imread(img_path)
         image = self.transform(image)
-        return image, sequence, target
+        return image, sequence
 
 
 def prepare_dataset(captions: List[str],
