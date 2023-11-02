@@ -28,7 +28,7 @@ class InceptionNet(nn.Module):
         # for param in self.inception_encoder.parameters():
         #     param.requires_grad = False
 
-        self.dropout = nn.Dropout(p=drop_rate)
+        # self.dropout = nn.Dropout(p=drop_rate)
         self.linear = nn.Linear(in_features=2048, out_features=image_features)
         self.relu = nn.ReLU()
 

@@ -36,7 +36,7 @@ class ImageCaptionModule(LightningModule):
         self.net = net
 
         # loss function
-        self.criterion = torch.nn.CrossEntropyLoss()
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=0)
 
         vocab_size_path = osp.join(dataset_dir, 'vocab_size.pkl')
         if not osp.exists(vocab_size_path):
@@ -106,12 +106,14 @@ class ImageCaptionModule(LightningModule):
         targets = []
 
         for i in range(1, sequence.shape[1]):
-            source, target = sequence[:, :i], sequence[:, i]
-            source = torch.nn.functional.pad(source,
-                                             (0, sequence.shape[1] - i),
-                                             value=0)
+            id = sequence[:, i] != 0  # not learn output = <pad>
+            if not id.any(): break  # <pad> all
 
-            images.append(image)
+            source, target = sequence[id, :i], sequence[id, i]
+            source = torch.nn.functional.pad(source,
+                                             (sequence.shape[1] - i, 0),
+                                             value=0)
+            images.append(image[id])
             sequences.append(source)
             targets.append(target)
 
@@ -260,28 +262,31 @@ class ImageCaptionModule(LightningModule):
 
     def on_train_batch_end(self, outputs: STEP_OUTPUT, batch: Any,
                            batch_idx: int) -> None:
-        self.store_data(batch, mode='train')
+        if batch_idx == 0:
+            self.store_data(batch, mode='train')
 
     def on_validation_batch_end(self,
                                 outputs: STEP_OUTPUT | None,
                                 batch: Any,
                                 batch_idx: int,
                                 dataloader_idx: int = 0) -> None:
-        self.store_data(batch, mode='val')
+        if batch_idx == 0:
+            self.store_data(batch, mode='val')
 
     def on_test_batch_end(self,
                           outputs: STEP_OUTPUT | None,
                           batch: Any,
                           batch_idx: int,
                           dataloader_idx: int = 0) -> None:
-        self.store_data(batch, mode='test')
+        if batch_idx == 0:
+            self.store_data(batch, mode='test')
 
     def store_data(self, batch: Any, mode: str):
         self.batch[mode] = batch
 
     def inference(self, mode: str, dataset_dir='data/flickr8k'):
         data = []
-        for img, seq in zip(self.batch[mode][0], self.batch[mode][1]):
+        for img, seq in zip(self.batch[mode][0][:5], self.batch[mode][1][:5]):
             caption = [self.id2word[id.cpu().item()] for id in seq if id != 0]
             caption = ' '.join(caption[1:-1])
             pred = self.net.greedySearch(img.unsqueeze(0))

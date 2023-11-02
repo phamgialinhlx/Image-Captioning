@@ -40,7 +40,7 @@ class ImageCaptionNet(nn.Module):
         self.linear_1 = nn.Linear(features, features)
         self.relu = nn.ReLU()
         self.linear_2 = nn.Linear(features, vocab_size)
-        self.softmax = nn.Softmax(dim=1)
+        # self.softmax = nn.Softmax(dim=1)
 
     def forward(self, image: Tensor, sequence: Tensor) -> Tensor:
         """_summary_
@@ -110,9 +110,9 @@ class ImageCaptionNet(nn.Module):
             sequence = [
                 self.word2id[w] for w in in_text.split() if w in self.word2id
             ]
-            sequence = pad_sequence(
-                [torch.tensor(sequence),
-                 torch.zeros(self.max_length)])[:, 0]
+            sequence = torch.nn.functional.pad(
+                torch.tensor(sequence), (self.max_length - len(sequence), 0),
+                value=0)
 
             sequence = sequence.unsqueeze(0).to(image.device)
 
