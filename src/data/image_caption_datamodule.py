@@ -120,7 +120,7 @@ class ImageCaptionDataModule(L.LightningDataModule):
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=True,
+            shuffle=False,
         )
 
     def test_dataloader(self):
@@ -129,7 +129,7 @@ class ImageCaptionDataModule(L.LightningDataModule):
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=True,
+            shuffle=False,
         )
 
     def teardown(self, stage: Optional[str] = None):
@@ -167,8 +167,8 @@ if __name__ == "__main__":
         print('train_dataloader:', len(train_dataloader))
 
         batch = next(iter(train_dataloader))
-        image, sequence = batch
-        print(image.shape, sequence.shape)
+        image, captions = batch
+        print(image.shape, captions.shape)
 
         import matplotlib.pyplot as plt
         from torchvision.utils import make_grid

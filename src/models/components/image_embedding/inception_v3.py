@@ -20,7 +20,7 @@ class InceptionNet(nn.Module):
         """
         super().__init__()
 
-        self.inception_encoder = inception_v3(pretrained=True,
+        self.inception_encoder = inception_v3(weights='DEFAULT',
                                               transform_input=True)
         self.inception_encoder.fc = torch.nn.Identity()
         self.inception_encoder.requires_grad_(False)

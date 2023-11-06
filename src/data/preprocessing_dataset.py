@@ -23,16 +23,17 @@ class PreprocessingDataset(Dataset):
         self.preprocessed_dataset = []
         for i in range(len(dataset)):
             img_path, captions = dataset[i]
+            caps = []
             for caption in captions:
-                sequence = [
+                caption = [
                     word2id[word] for word in caption.split()
                     if word in word2id
                 ]
 
-                sequence = torch.nn.functional.pad(
-                    torch.tensor(sequence), (0, max_length - len(sequence)),
-                    value=0)
-                self.preprocessed_dataset.append([img_path, sequence])
+                caption = caption + [0] * (max_length - len(caption))
+                caps.append(caption)
+
+            self.preprocessed_dataset.append([img_path, torch.tensor(caps)])
 
         self.transform = T.Compose([
             T.ToTensor(),
@@ -44,15 +45,11 @@ class PreprocessingDataset(Dataset):
         return len(self.preprocessed_dataset)
 
     def __getitem__(self, idx):
-        img_path, sequence = self.preprocessed_dataset[idx]
-
-        while not osp.exists(img_path):
-            idx = (idx + 1) % len(self.preprocessed_dataset)
-            img_path, sequence = self.preprocessed_dataset[idx]
-
+        img_path, captions = self.preprocessed_dataset[idx]
         image = imageio.v2.imread(img_path)
         image = self.transform(image)
-        return image, sequence
+
+        return image, captions
 
 
 def prepare_dataset(captions: List[str],
@@ -143,7 +140,7 @@ def prepare_dataset(captions: List[str],
             dump(vocab_size, file)
 
     print('Embedding matrix:', embedding_matrix.shape)
-    print('Max length of sequence:', max_length)
+    print('Max length of caption:', max_length)
     print('Vocab size:', vocab_size)
 
     return max_length, id2word, word2id

@@ -99,27 +99,30 @@ class ImageCaptionModule(LightningModule):
             - A tensor of predictions.
             - A tensor of target labels.
         """
-        image, sequence = batch
+        image, captions = batch
 
         images = []
         sequences = []
         targets = []
 
-        for i in range(1, sequence.shape[1]):
-            id = sequence[:, i] != 0  # not learn output = <pad>
-            if not id.any(): break  # <pad> all
+        # captions: batch, 5, max_length
+        for n_cap in range(captions.shape[1]):
+            for i in range(1, captions.shape[2]):
+                id = captions[:, n_cap, i] != 0  # not learn output = <pad>
+                if not id.any(): break  # <pad> all
 
-            source, target = sequence[id, :i], sequence[id, i]
-            source = torch.nn.functional.pad(source,
-                                             (sequence.shape[1] - i, 0),
-                                             value=0)
-            images.append(image[id])
-            sequences.append(source)
-            targets.append(target)
+                source, target = captions[id, n_cap, :i], captions[id, n_cap,
+                                                                   i]
+                source = torch.nn.functional.pad(source,
+                                                 (captions.shape[2] - i, 0),
+                                                 value=0)
+                images.append(image[id])
+                sequences.append(source)
+                targets.append(target)
 
-        images = torch.cat(images, dim=0).to(image.device)
-        sequences = torch.cat(sequences, dim=0).to(image.device)
-        targets = torch.cat(targets, dim=0).to(image.device)
+        images = torch.cat(images, dim=0)
+        sequences = torch.cat(sequences, dim=0)
+        targets = torch.cat(targets, dim=0)
 
         logits = self.forward(images, sequences)
         loss = self.criterion(logits, targets)
@@ -284,13 +287,20 @@ class ImageCaptionModule(LightningModule):
     def store_data(self, batch: Any, mode: str):
         self.batch[mode] = batch
 
-    def inference(self, mode: str, dataset_dir='data/flickr8k'):
+    def inference(self, mode: str, dataset_dir: str = 'data/flickr8k'):
         data = []
-        for img, seq in zip(self.batch[mode][0][:5], self.batch[mode][1][:5]):
-            caption = [self.id2word[id.cpu().item()] for id in seq if id != 0]
-            caption = ' '.join(caption[1:-1])
+        for img, captions in zip(self.batch[mode][0], self.batch[mode][1]):
+            targets = []
+            for caption in captions:
+                caption = [
+                    self.id2word[id.cpu().item()] for id in caption if id != 0
+                ]
+                caption = ' '.join(caption[1:-1])
+                targets.append(caption)
+
+            targets = ' | '.join(targets)
             pred = self.net.greedySearch(img.unsqueeze(0))
-            data.append([wandb.Image(img), pred, caption])
+            data.append([wandb.Image(img), pred, targets])
 
         self.logger.log_table(key=f'{mode}/infer',
                               columns=['image', 'pred', 'caption'],
