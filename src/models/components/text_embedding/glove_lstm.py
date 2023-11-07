@@ -63,7 +63,7 @@ class Glove_LSTM(nn.Module):
         out = self.embed(sequence)
         # out = self.dropout(out)
         out, _ = self.lstm(out)  # return output and hidden state
-        return out[:, -1]  # only get
+        return out[:, -1]  # only get the last
 
 
 if __name__ == "__main__":
