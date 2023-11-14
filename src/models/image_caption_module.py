@@ -6,6 +6,7 @@ import torch
 from lightning import LightningModule
 from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
+from torchmetrics.text import BLEUScore
 from pickle import load
 import os.path as osp
 
@@ -55,7 +56,10 @@ class ImageCaptionModule(LightningModule):
         self.train_acc = Accuracy(task="multiclass", num_classes=vocab_size)
         self.val_acc = Accuracy(task="multiclass", num_classes=vocab_size)
         self.test_acc = Accuracy(task="multiclass", num_classes=vocab_size)
-
+        self.test_bleu1 = BLEUScore(n_gram=1)
+        self.test_bleu2 = BLEUScore(n_gram=2)
+        self.test_bleu3 = BLEUScore(n_gram=3)
+        self.test_bleu4 = BLEUScore(n_gram=4)
         # for averaging loss across batches
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
@@ -162,6 +166,30 @@ class ImageCaptionModule(LightningModule):
         return
         self.inference(mode='train')
 
+    def calculate_bleu(self, batch, metrics):
+        # calculate bleu score
+        with torch.no_grad():
+            images, captions = batch
+            batch_length = images.shape[0]
+            for i in range(batch_length):
+                e_image = images[i]
+                e_captions = captions[i]
+                
+                targets = []
+                for caption in e_captions:
+                    caption = [
+                        self.id2word[id.cpu().item()] for id in caption if id != 0
+                    ]
+                    caption = ' '.join(caption[1:-1])
+                    targets.append(caption)
+                
+                pred = self.net.greedySearch(e_image.unsqueeze(0))
+                print(targets)
+                print([pred])
+
+                for metric in metrics:
+                    metric.update([pred], [targets])
+    
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor],
                         batch_idx: int) -> None:
         """Perform a single validation step on a batch of data from the validation set.
@@ -212,6 +240,8 @@ class ImageCaptionModule(LightningModule):
         # update and log metrics
         self.test_loss(loss)
         self.test_acc(preds, targets)
+        self.calculate_bleu(batch, [self.test_bleu1, self.test_bleu2, self.test_bleu3, self.test_bleu4])
+        
         self.log("test/loss",
                  self.test_loss,
                  on_step=False,
@@ -222,7 +252,27 @@ class ImageCaptionModule(LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-
+        self.log("test/bleu1",
+                 self.test_bleu1,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        self.log("test/bleu2",
+                 self.test_bleu2,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        self.log("test/bleu3",
+                 self.test_bleu3,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        self.log("test/bleu4",
+                 self.test_bleu4,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
         self.inference(mode='test')

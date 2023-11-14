@@ -41,7 +41,6 @@ class InceptionNet(nn.Module):
         Returns:
             Tensor: (batch, image_features)
         """
-
         self.inception_encoder.eval()
         # if in train mode, inception have batch_normalization so batch_size > 1
 
