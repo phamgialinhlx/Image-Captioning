@@ -8,11 +8,11 @@ from torch.nn.utils.rnn import pad_sequence
 
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.components.image_embedding import InceptionNet
-from src.models.components.text_embedding import Glove_RNN, Glove_Transformer_Encoder
+from src.models.components.image_embedding import InceptionNet, ResnetEncoder
+from src.models.components.text_embedding import Glove_RNN, Glove_Transformer
 
 
-class ImageCaptionNet(nn.Module):
+class BertCaptioning(nn.Module):
 
     def __init__(
         self,
@@ -52,17 +52,14 @@ class ImageCaptionNet(nn.Module):
         Returns:
             Tensor: (batch, vocab_size)
         """
-        # from IPython import embed; embed()
+        from IPython import embed; embed()
         image_embed = self.image_embed_net(image)
-        sequence_embed = self.text_embed_net(sequence)
-        if isinstance(image_embed, ImageCaptionNet) and isinstance(
-                sequence_embed, Glove_Transformer_Encoder):
-            out = self.linear_2(self.relu(self.linear_1(image_embed))) + sequence_embed[:, -1]
-        else:
-            embed = image_embed + sequence_embed[:, -1]
-            out = self.relu(self.linear_1(embed))
-            # out = self.softmax(self.linear_2(out))
-            out = self.linear_2(out)
+        sequence_embed = self.text_embed_net(image_embed, sequence).to(torch.float32)
+
+        # embed = image_embed + sequence_embed
+        out = self.relu(self.linear_1(sequence_embed))
+        # out = self.softmax(self.linear_2(out))
+        out = self.linear_2(out)
         return out
 
     def prepare(self, dataset_dir: str):
@@ -122,10 +119,10 @@ class ImageCaptionNet(nn.Module):
             sequence = sequence.unsqueeze(0).to(image.device)
 
             pred = self(image, sequence)
+            print(pred)
             pred = torch.argmax(pred, dim=1)
-            # print(pred)
             word = self.id2word[pred.cpu().item()]
-            # print(in_text + " " + word)
+            print(in_text + " " + word)
             in_text += ' ' + word
             if word == 'endseq':
                 break
@@ -136,8 +133,8 @@ class ImageCaptionNet(nn.Module):
 
 
 if __name__ == "__main__":
-    net = ImageCaptionNet(image_embed_net=InceptionNet(),
-                          text_embed_net=Glove_Transformer_Encoder())
+    net = BertCaptioning(image_embed_net=ResnetEncoder(embed_dim=256),
+                          text_embed_net=Glove_Transformer())
 
     sequences = torch.randint(0, 100, (20, 2))
     images = torch.randn(2, 3, 299, 299)

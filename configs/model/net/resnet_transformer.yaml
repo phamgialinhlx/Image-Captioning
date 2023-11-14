@@ -1,8 +1,8 @@
 _target_: src.models.components.image_caption_net2.ImageCaptionNet2
 image_embed_net:
-  _target_: src.models.components.image_embedding.InceptionNet
-  drop_rate: 0.5
-  image_features: ${model.net.features}
+  _target_: src.models.components.image_embedding.ResnetEncoder
+  encode_size: 14
+  embed_dim: 200
 
 text_embed_net:
   _target_: src.models.components.text_embedding.Glove_Transformer

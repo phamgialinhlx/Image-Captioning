@@ -63,7 +63,7 @@ class Glove_RNN(nn.Module):
         out = self.embed(sequence)
         # out = self.dropout(out)
         out, _ = self.rnn(out)  # return output and hidden state
-        return out[:, -1]  # only get the last
+        return out  # only get the last
 
 
 if __name__ == "__main__":
