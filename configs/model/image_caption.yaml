@@ -1,7 +1,7 @@
 _target_: src.models.ImageCaptionModule
 
 defaults:
-  - net: inception_transformer
+  - net: inception_rnn
 
 optimizer:
   _target_: torch.optim.Adam
@@ -15,6 +15,5 @@ scheduler:
   mode: min
   factor: 0.1
   patience: 10
-
 
 dataset_dir: ${paths.data_dir}/${data.dataset_name}
