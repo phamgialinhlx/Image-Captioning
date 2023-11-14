@@ -338,8 +338,11 @@ class ImageCaptionModule(LightningModule):
         self.batch[mode] = batch
 
     def inference(self, mode: str, dataset_dir: str = 'data/flickr8k'):
+        preds = self.net.greedySearch(self.batch[mode][0])
+
         data = []
-        for img, captions in zip(self.batch[mode][0], self.batch[mode][1]):
+        for pred, img, captions in zip(preds, self.batch[mode][0],
+                                       self.batch[mode][1]):
             targets = []
             for caption in captions:
                 caption = [
@@ -349,7 +352,6 @@ class ImageCaptionModule(LightningModule):
                 targets.append(caption)
 
             targets = ' | '.join(targets)
-            pred = self.net.greedySearch(img.unsqueeze(0))
             data.append([wandb.Image(img), pred, targets])
 
         self.logger.log_table(key=f'{mode}/infer',

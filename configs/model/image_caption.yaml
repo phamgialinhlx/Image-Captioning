@@ -1,7 +1,6 @@
 _target_: src.models.ImageCaptionModule
 
 defaults:
-  # - net: inception_transformer_encoder
   - net: inception_rnn
 
 optimizer:
@@ -16,6 +15,5 @@ scheduler:
   mode: min
   factor: 0.1
   patience: 10
-
 
 dataset_dir: ${paths.data_dir}/${data.dataset_name}
