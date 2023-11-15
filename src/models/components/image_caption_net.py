@@ -66,8 +66,7 @@ class ImageCaptionNet(nn.Module):
         # from IPython import embed; embed()
         image_embed = self.image_embed_net(image)
         sequence_embed = self.text_embed_net(sequence)
-
-        if isinstance(self.image_embed_net, ImageCaptionNet) and isinstance(sequence_embed, Glove_Transformer_Encoder):
+        if isinstance(self.image_embed_net, InceptionNet) and isinstance(self.text_embed_net, Glove_Transformer_Encoder):
             out = self.linear_2(self.relu(self.linear_1(image_embed))) + sequence_embed
         else:
             # integrate two embedding vector
