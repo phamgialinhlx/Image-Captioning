@@ -1,12 +1,12 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=image_caption
+# python train.py experiment=ilstm
 
 defaults:
   - override /data: flickr8k
   - override /model: image_caption
-  - override /model/net: inception_transformer
+  - override /model/net: inception_lstm
   - override /callbacks: default
   - override /trainer: gpu
   - override /logger: wandb
@@ -19,6 +19,10 @@ seed: 12345
 data:
   batch_size: 2
   num_workers: 10
+
+model:
+  net:
+    operation: "concat"
 
 trainer:
   max_epochs: 30

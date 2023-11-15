@@ -184,11 +184,9 @@ class ImageCaptionModule(LightningModule):
                     targets.append(caption)
                 
                 pred = self.net.greedySearch(e_image.unsqueeze(0))
-                print(targets)
-                print([pred])
 
                 for metric in metrics:
-                    metric.update([pred], [targets])
+                    metric.update(pred, [targets])
     
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor],
                         batch_idx: int) -> None:

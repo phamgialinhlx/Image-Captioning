@@ -74,7 +74,7 @@ class Glove_Transformer_Encoder(nn.Module):
             src_mask = nn.Transformer.generate_square_subsequent_mask(len(src))
         output = self.transformer_encoder(src, src_mask)
         output = self.linear(output)
-        return output
+        return output[:, -1]
 
 if __name__ == "__main__":
     net = Glove_Transformer_Encoder()

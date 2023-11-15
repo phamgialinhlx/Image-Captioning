@@ -9,17 +9,20 @@ from torch.nn.utils.rnn import pad_sequence
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.components.image_embedding import InceptionNet, ResnetEncoder
-from src.models.components.text_embedding import Glove_RNN, Glove_Transformer
+from src.models.components.text_embedding import (
+    Glove_RNN,
+    Glove_Transformer,
+    DecoderWithAttention,
+)
 
 
 class BertCaptioning(nn.Module):
-
     def __init__(
         self,
         image_embed_net,
         text_embed_net,
         features: int = 256,
-        dataset_dir: str = 'data/flickr8k',
+        dataset_dir: str = "data/flickr8k",
     ) -> None:
         """_summary_
 
@@ -33,9 +36,12 @@ class BertCaptioning(nn.Module):
 
         self.text_embed_net = text_embed_net
         self.image_embed_net = image_embed_net
+        self.image_embed_net.eval()
+        self.image_embed_net.freeze()
 
         self.id2word, self.word2id, self.max_length, vocab_size = self.prepare(
-            dataset_dir)
+            dataset_dir
+        )
 
         self.linear_1 = nn.Linear(features, features)
         self.relu = nn.ReLU()
@@ -52,9 +58,13 @@ class BertCaptioning(nn.Module):
         Returns:
             Tensor: (batch, vocab_size)
         """
-        from IPython import embed; embed()
+        from IPython import embed
+
+        embed()
         image_embed = self.image_embed_net(image)
-        sequence_embed = self.text_embed_net(image_embed, sequence).to(torch.float32)
+        scores, caps_sorted, decode_lengths, alphas, sort_ind = self.text_embed_net(
+            image_embed, sequence, torch.full((image.shape[0], 1), self.max_length)
+        )
 
         # embed = image_embed + sequence_embed
         out = self.relu(self.linear_1(sequence_embed))
@@ -74,10 +84,10 @@ class BertCaptioning(nn.Module):
         Returns:
             _type_: _description_
         """
-        id2word_path = osp.join(dataset_dir, 'id2word.pkl')
-        word2id_path = osp.join(dataset_dir, 'word2id.pkl')
-        max_length_path = osp.join(dataset_dir, 'max_length.pkl')
-        vocab_size_path = osp.join(dataset_dir, 'vocab_size.pkl')
+        id2word_path = osp.join(dataset_dir, "id2word.pkl")
+        word2id_path = osp.join(dataset_dir, "word2id.pkl")
+        max_length_path = osp.join(dataset_dir, "max_length.pkl")
+        vocab_size_path = osp.join(dataset_dir, "vocab_size.pkl")
 
         if not osp.exists(vocab_size_path):
             raise ValueError(
@@ -107,14 +117,12 @@ class BertCaptioning(nn.Module):
         Returns:
             _type_: _description_
         """
-        in_text = 'startseq'
+        in_text = "startseq"
         for i in range(self.max_length):
-            sequence = [
-                self.word2id[w] for w in in_text.split() if w in self.word2id
-            ]
+            sequence = [self.word2id[w] for w in in_text.split() if w in self.word2id]
             sequence = torch.nn.functional.pad(
-                torch.tensor(sequence), (self.max_length - len(sequence), 0),
-                value=0)
+                torch.tensor(sequence), (self.max_length - len(sequence), 0), value=0
+            )
 
             sequence = sequence.unsqueeze(0).to(image.device)
 
@@ -123,20 +131,32 @@ class BertCaptioning(nn.Module):
             pred = torch.argmax(pred, dim=1)
             word = self.id2word[pred.cpu().item()]
             print(in_text + " " + word)
-            in_text += ' ' + word
-            if word == 'endseq':
+            in_text += " " + word
+            if word == "endseq":
                 break
         final = in_text.split()
         final = final[1:-1]
-        final = ' '.join(final)
+        final = " ".join(final)
         return final
 
 
 if __name__ == "__main__":
-    net = BertCaptioning(image_embed_net=ResnetEncoder(embed_dim=256),
-                          text_embed_net=Glove_Transformer())
+    embed_dim = 256  # 512
+    attention_dim = 256  # 512
+    decoder_dim = 256  # 512
+    vocab_size = 1741
 
-    sequences = torch.randint(0, 100, (20, 2))
+    net = BertCaptioning(
+        image_embed_net=ResnetEncoder(),
+        text_embed_net=DecoderWithAttention(
+            attention_dim=attention_dim,
+            embed_dim=embed_dim,
+            decoder_dim=decoder_dim,
+            vocab_size=vocab_size,
+        ),
+    )
+
+    sequences = torch.randint(0, 100, (2, 37))
     images = torch.randn(2, 3, 299, 299)
     out = net(images, sequences)
     print(out.shape)

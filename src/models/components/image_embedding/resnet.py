@@ -3,78 +3,46 @@ import torchvision
 
 
 class ResnetEncoder(nn.Module):
+    """
+    Encoder.
+    """
 
-    def __init__(self, encode_size=14, embed_dim=256):
-        """
-        param:
-        encode_size:    encoded image size.
-                        int
-
-        embed_dim:      encoded images features dimension
-                        int
-        """
+    def __init__(self, encoded_image_size=14):
         super(ResnetEncoder, self).__init__()
+        self.enc_image_size = encoded_image_size
 
-        self.embed_dim = embed_dim
-        # pretrained ImageNet ResNet-101
-        # Remove last linear and pool layers
-        resnet = torchvision.models.resnet101(weights=True)
-        self.resnet = nn.Sequential(*list(resnet.children())[:-2])
+        resnet = torchvision.models.resnet101(pretrained=True)  # pretrained ImageNet ResNet-101
 
-        self.downsampling = nn.Conv2d(in_channels=2048,
-                                      out_channels=embed_dim,
-                                      kernel_size=1,
-                                      stride=1,
-                                      bias=False)
-        self.bn = nn.BatchNorm2d(embed_dim)
-        self.relu = nn.ReLU(inplace=True)
+        # Remove linear and pool layers (since we're not doing classification)
+        modules = list(resnet.children())[:-2]
+        self.resnet = nn.Sequential(*modules)
 
-        # Resize images, use 2D adaptive max pooling
-        self.adaptive_resize = nn.AdaptiveAvgPool2d(encode_size)
+        # Resize image to fixed size to allow input images of variable size
+        self.adaptive_pool = nn.AdaptiveAvgPool2d((encoded_image_size, encoded_image_size))
 
-    def forward(self, images: Tensor):
+        self.fine_tune()
+
+    def forward(self, images):
         """
-        param:
-        images: Input images.
-                Tensor [batch_size, 3, h, w]
+        Forward propagation.
 
-        output: encoded images.
-                Tensor [batch_size, encode_size * encode_size, embed_dim]
+        :param images: images, a tensor of dimensions (batch_size, 3, image_size, image_size)
+        :return: encoded images
         """
-        # batch_size = B
-        # image_size = [B, 3, h, w]
-        B = images.size()[0]
-
-        # [B, 3, h, w] -> [B, 2048, h/32=8, w/32=8]
-        out = self.resnet(images)  # type: Tensor
-
-        # Downsampling: resnet features size (2048) -> embed_size (512)
-        # [B, 2048, 8, 8] -> [B, embed_size=512, 8, 8]
-        out = self.relu(self.bn(self.downsampling(out)))
-
-        # Adaptive image resize: resnet output size (8,8) -> encode_size (14,14)
-        #   [B, embed_size=512, 8, 8] ->
-        #       [B, embed_size=512, encode_size=14, encode_size=14] ->
-        #           [B, 512, 196] -> [B, 196, 512]
-        out = self.adaptive_resize(out)
-        # out = out.view(B, self.embed_dim, -1).permute(0, 2, 1)
-        out = out.permute(0, 2, 3, 1)
+        out = self.resnet(images)  # (batch_size, 2048, image_size/32, image_size/32)
+        out = self.adaptive_pool(out)  # (batch_size, 2048, encoded_image_size, encoded_image_size)
+        out = out.permute(0, 2, 3, 1)  # (batch_size, encoded_image_size, encoded_image_size, 2048)
         return out
 
-    # def fine_tune(self, fine_tune=True):
-    #     """
-    #     Allow or prevent the tuning for blocks 2 through 4.
-    #     """
+    def fine_tune(self, fine_tune=True):
+        """
+        Allow or prevent the computation of gradients for convolutional blocks 2 through 4 of the encoder.
 
-    #     for p in self.resnet.parameters():
-    #         p.requires_grad = False
-
-    #     for c in list(self.resnet.children())[5:]:
-    #         for p in c.parameters():
-    #             p.requires_grad = fine_tune
-if __name__ == "__main__":
-    net = ResnetEncoder()
-    import torch
-    x = torch.randn(2, 3, 224, 224)
-    out = net(x)
-    print(out.shape)    
+        :param fine_tune: Allow?
+        """
+        for p in self.resnet.parameters():
+            p.requires_grad = False
+        # If fine-tuning, only fine-tune convolutional blocks 2 through 4
+        for c in list(self.resnet.children())[5:]:
+            for p in c.parameters():
+                p.requires_grad = fine_tune
