@@ -10,6 +10,7 @@ from pickle import load
 import os.path as osp
 
 from src.models.components import ImageCaptionNet
+from src.utils.decode import greedy_search, batch_greedy_search, beam_search_decoding
 
 
 class ImageCaptionModule(LightningModule):
@@ -287,8 +288,19 @@ class ImageCaptionModule(LightningModule):
     def store_data(self, batch: Any, mode: str):
         self.batch[mode] = batch
 
-    def inference(self, mode: str, dataset_dir: str = 'data/flickr8k'):
-        preds = self.net.greedySearch(self.batch[mode][0])
+    def inference(self, mode: str, search: str = 'greedy'):
+        if search == 'greedy':
+            search = greedy_search
+        elif search == 'batch_greedy':
+            search = batch_greedy_search
+        elif search == 'beam':
+            search = beam_search_decoding
+        # elif search == 'batch_beam':
+        #     search = batch_beam_search_decoding
+        else:
+            raise NotImplementedError(f"unknown search: {search}")
+
+        preds = search(model=self.net, images=self.batch[mode][0])
 
         data = []
         for pred, img, captions in zip(preds, self.batch[mode][0],

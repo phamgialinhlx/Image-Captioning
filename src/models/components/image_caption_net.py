@@ -122,39 +122,6 @@ class ImageCaptionNet(nn.Module):
 
         return id2word, word2id, max_length, vocab_size
 
-    def greedySearch(self, images: Tensor):
-        """_summary_
-
-        Args:
-            images (Tensor): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        sequences = torch.tensor([[self.word2id['startseq']]] *
-                                 images.shape[0]).to(images.device)
-        for i in range(self.max_length - 1):
-            seqs_pad = torch.nn.functional.pad(sequences,
-                                               (self.max_length - i - 1, 0),
-                                               value=0)
-
-            seqs_pad = seqs_pad.to(images.device)
-            pred = self(images, seqs_pad)
-            pred = torch.argmax(pred, dim=1, keepdim=True)
-            sequences = torch.cat((sequences, pred), dim=1)
-
-        captions = []
-        for sequence in sequences:
-            caption = []
-            for id in sequence:
-                w = self.id2word[id.cpu().item()]
-                if w == 'endseq': break
-                caption.append(w)
-            captions.append(' '.join(caption[1:]))
-
-        return captions
-
-
 if __name__ == "__main__":
     net = ImageCaptionNet(image_embed_net=InceptionNet(device='cpu'),
                           text_embed_net=Glove_RNN())
