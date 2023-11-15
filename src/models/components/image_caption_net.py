@@ -67,27 +67,30 @@ class ImageCaptionNet(nn.Module):
         image_embed = self.image_embed_net(image)
         sequence_embed = self.text_embed_net(sequence)
 
-        if isinstance(image_embed, ImageCaptionNet) and isinstance(sequence_embed, Glove_Transformer_Encoder):
-            out = self.linear_2(self.relu(self.linear_1(image_embed))) + sequence_embed[:, -1]
+        if isinstance(image_embed, ImageCaptionNet) and isinstance(
+                sequence_embed, Glove_Transformer_Encoder):
+            out = self.linear_2(self.relu(
+                self.linear_1(image_embed))) + sequence_embed[:, -1]
         else:
-          # integrate two embedding vector
-          if self.operation == 'add':
-              embed = image_embed + sequence_embed
-          elif self.operation == 'concat':
-              embed = torch.cat((image_embed, sequence_embed), dim=1)
-              embed = self.linear(embed)
-          elif self.operation == 'cross_attention':
-              embed = self.cross_att(image_embed, sequence_embed)
-          elif self.operation == 'self_attention':
-              embed = torch.cat((image_embed, sequence_embed), dim=1)
-              embed = self.linear(embed)
-              embed = self.self_att(embed)
-          elif self.operation != 'add':
-              raise NotImplementedError(f"unknown operation: {self.operation}")
+            # integrate two embedding vector
+            if self.operation == 'add':
+                embed = image_embed + sequence_embed
+            elif self.operation == 'concat':
+                embed = torch.cat((image_embed, sequence_embed), dim=1)
+                embed = self.linear(embed)
+            elif self.operation == 'cross_attention':
+                embed = self.cross_att(image_embed, sequence_embed)
+            elif self.operation == 'self_attention':
+                embed = torch.cat((image_embed, sequence_embed), dim=1)
+                embed = self.linear(embed)
+                embed = self.self_att(embed)
+            elif self.operation != 'add':
+                raise NotImplementedError(
+                    f"unknown operation: {self.operation}")
 
-          out = self.relu(self.linear_1(embed))
-          # out = self.softmax(self.linear_2(out))
-          out = self.linear_2(out)
+            out = self.relu(self.linear_1(embed))
+            # out = self.softmax(self.linear_2(out))
+            out = self.linear_2(out)
 
         return out
 
@@ -127,37 +130,6 @@ class ImageCaptionNet(nn.Module):
 
         return id2word, word2id, max_length, vocab_size
 
-    def greedySearch(self, images: Tensor):
-        """_summary_
-
-        Args:
-            images (Tensor): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        sequences = torch.tensor([[self.word2id['startseq']]] *
-                                 images.shape[0]).to(images.device)
-        for i in range(self.max_length - 1):
-            seqs_pad = torch.nn.functional.pad(sequences,
-                                               (self.max_length - i - 1, 0),
-                                               value=0)
-
-            seqs_pad = seqs_pad.to(images.device)
-            pred = self(images, seqs_pad)
-            pred = torch.argmax(pred, dim=1, keepdim=True)
-            sequences = torch.cat((sequences, pred), dim=1)
-
-        captions = []
-        for sequence in sequences:
-            caption = []
-            for id in sequence:
-                w = self.id2word[id.cpu().item()]
-                if w == 'endseq': break
-                caption.append(w)
-            captions.append(' '.join(caption[1:]))
-
-        return captions
 
 if __name__ == "__main__":
     net = ImageCaptionNet(image_embed_net=InceptionNet(),
