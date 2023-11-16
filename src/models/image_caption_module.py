@@ -167,7 +167,17 @@ class ImageCaptionModule(LightningModule):
         return
         self.inference(mode='train')
 
-    def calculate_bleu(self, batch, metrics):
+    def calculate_bleu(self, batch, metrics, search: str = 'greedy'):
+        if search == 'greedy':
+            search = greedy_search
+        elif search == 'batch_greedy':
+            search = batch_greedy_search
+        elif search == 'beam':
+            search = beam_search_decoding
+        # elif search == 'batch_beam':
+        #     search = batch_beam_search_decoding
+        else:
+            raise NotImplementedError(f"unknown search: {search}")
         # calculate bleu score
         with torch.no_grad():
             images, captions = batch
@@ -183,9 +193,7 @@ class ImageCaptionModule(LightningModule):
                     ]
                     caption = ' '.join(caption[1:-1])
                     targets.append(caption)
-                
-                pred = self.net.greedySearch(e_image.unsqueeze(0))
-
+                pred = search(model=self.net, images=e_image.unsqueeze(0))
                 for metric in metrics:
                     metric.update(pred, [targets])
     
