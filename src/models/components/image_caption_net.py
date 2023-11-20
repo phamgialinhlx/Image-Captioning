@@ -9,7 +9,7 @@ from torch.nn.utils.rnn import pad_sequence
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.components.image_embedding import InceptionNet
-from src.models.components.text_embedding import Glove_RNN, Glove_Transformer_Encoder
+from src.models.components.text_embedding import Glove_RNN, Glove_Transformer, Glove_Transformer_Encoder, Transformer
 from src.models.components.attention import Attention
 
 
@@ -64,12 +64,17 @@ class ImageCaptionNet(nn.Module):
             Tensor: (batch, vocab_size)
         """
         # from IPython import embed; embed()
-        image_embed = self.image_embed_net(image)
-        sequence_embed = self.text_embed_net(sequence)
         if isinstance(self.image_embed_net, InceptionNet) and isinstance(self.text_embed_net, Glove_Transformer_Encoder):
+            image_embed = self.image_embed_net(image)
+            sequence_embed = self.text_embed_net(sequence)
             out = self.linear_2(self.relu(self.linear_1(image_embed))) + sequence_embed
+        if isinstance(self.text_embed_net, Glove_Transformer) or isinstance(self.text_embed_net, Transformer):
+            image_embed = self.image_embed_net(image) # (batch, features)
+            out = self.text_embed_net(image_embed, sequence)
         else:
             # integrate two embedding vector
+            image_embed = self.image_embed_net(image)
+            sequence_embed = self.text_embed_net(sequence)
             if self.operation == 'add':
                 embed = image_embed + sequence_embed
             elif self.operation == 'concat':
@@ -130,7 +135,7 @@ class ImageCaptionNet(nn.Module):
 
 if __name__ == "__main__":
     net = ImageCaptionNet(image_embed_net=InceptionNet(),
-                          text_embed_net=Glove_Transformer_Encoder())
+                          text_embed_net=Glove_Transformer())
 
     sequences = torch.randint(0, 100, (20, 2))
     images = torch.randn(2, 3, 299, 299)
