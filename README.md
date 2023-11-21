@@ -29,11 +29,6 @@ Team Members: Trịnh Ngọc Huỳnh (20020054) and Phạm Gia Linh (20020203).
  ### **Evaluation**
     export CUDA_VISIBLE_DEVICES=???
     python src/eval.py experiment=<your_experiment> ckpt_path=<your_checkpoint>
-  ## **Demo UI**
-  Specify your checkpoint in the 'ui.py' file for inference.
-
-    python ui.py
-![UI](images/ui.png)
 
 ## **3. Results**
 
@@ -48,3 +43,8 @@ Team Members: Trịnh Ngọc Huỳnh (20020054) and Phạm Gia Linh (20020203).
 | [transformer](configs/experiment/transformer.yaml)  | 0.48475 | 0.29834 | 0.17457 | 0.10973 |
 | [glove_transformer](configs/experiment/glove_transformer.yaml)  | 0.37894 | 0.20448 | 0.11482 | 0.07074 |
 
+## 4. **Demo UI**
+Specify your checkpoint in the 'ui.py' file for inference.
+
+    python ui.py
+![UI](images/ui.png)
