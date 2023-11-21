@@ -7,7 +7,8 @@ from torchvision import transforms as T
 from src.utils.decode import greedy_search, batch_greedy_search, beam_search_decoding
 
 
-checkpoint = 'logs/train/runs/2023-11-15_13-32-11/checkpoints/epoch_019.ckpt'
+# checkpoint = 'logs/train/runs/2023-11-15_13-32-11/checkpoints/epoch_019.ckpt'
+checkpoint = None
 device = torch.device("cuda")
 
 model = ImageCaptionModule.load_from_checkpoint(checkpoint)
