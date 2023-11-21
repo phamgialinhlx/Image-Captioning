@@ -29,10 +29,22 @@ Team Members: Trịnh Ngọc Huỳnh (20020054) and Phạm Gia Linh (20020203).
  ### **Evaluation**
     export CUDA_VISIBLE_DEVICES=???
     python src/eval.py experiment=<your_experiment> ckpt_path=<your_checkpoint>
-  ## **Demo UI**
-  Specify your checkpoint in the 'ui.py' file for inference.
+
+## **3. Results**
+
+
+| Experiment Name | BLEU-1 | BLEU-2 | BLEU-3 | BLEU-4 |
+|-------|-------------|---------|-------------|------:|
+| [rnn](configs/experiment/rnn.yaml) | 0.55241 | 0.37043 | 0.23651 | 0.1536 |
+| [rnn_concat](configs/experiment/rnn_concat.yaml) | 0.54297 | 0.35271 | 0.22136 | 0.13712 |
+| [lstm](configs/experiment/lstm.yaml) |  0.57097 | 0.38688 | 0.25114 | 0.16337 |
+| [lstm_concat](configs/experiment/lstm_concat.yaml) | 0.56068 | 0.37466 | 0.23859 | 0.15176 |
+| [transformer_encoder](configs/experiment/transformer_encoder.yaml) | 0.19013 | 0.10166 | 0.04107 | 0.0168 |
+| [transformer](configs/experiment/transformer.yaml)  | 0.48475 | 0.29834 | 0.17457 | 0.10973 |
+| [glove_transformer](configs/experiment/glove_transformer.yaml)  | 0.37894 | 0.20448 | 0.11482 | 0.07074 |
+
+## 4. **Demo UI**
+Specify your checkpoint in the 'ui.py' file for inference.
 
     python ui.py
-
 ![UI](images/ui.png)
-
