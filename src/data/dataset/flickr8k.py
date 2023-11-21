@@ -62,13 +62,13 @@ def caption_preprocessing(text):
 
 if __name__ == "__main__":
     dataset = FlickrDataset8k()
-    # print('Length Dataset:', len(dataset))
+    print('Length Dataset:', len(dataset))
 
-    # img_path, captions = dataset[0]
-    # image = imageio.v2.imread(img_path)
-    # print('Image size:', image.shape)
-    # print('Caption:', captions)
+    img_path, captions = dataset[0]
+    image = imageio.v2.imread(img_path)
+    print('Image size:', image.shape)
+    print('Caption:', captions)
 
-    # import matplotlib.pyplot as plt
-    # plt.imshow(image)
-    # plt.show()
+    import matplotlib.pyplot as plt
+    plt.imshow(image)
+    plt.show()
