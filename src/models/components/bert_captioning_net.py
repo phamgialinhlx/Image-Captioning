@@ -11,12 +11,11 @@ rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 from src.models.components.image_embedding import InceptionNet, ResnetEncoder
 from src.models.components.text_embedding import (
     Glove_RNN,
-    Glove_Transformer,
     DecoderWithAttention,
 )
 
 
-class BertCaptioning(nn.Module):
+class BertCaptioningNet(nn.Module):
     def __init__(
         self,
         image_embed_net,
@@ -36,8 +35,6 @@ class BertCaptioning(nn.Module):
 
         self.text_embed_net = text_embed_net
         self.image_embed_net = image_embed_net
-        self.image_embed_net.eval()
-        self.image_embed_net.freeze()
 
         self.id2word, self.word2id, self.max_length, vocab_size = self.prepare(
             dataset_dir
@@ -62,15 +59,10 @@ class BertCaptioning(nn.Module):
 
         embed()
         image_embed = self.image_embed_net(image)
-        scores, caps_sorted, decode_lengths, alphas, sort_ind = self.text_embed_net(
+        scores, encoded_captions, decode_lengths, alphas, sort_ind = self.text_embed_net(
             image_embed, sequence, torch.full((image.shape[0], 1), self.max_length)
         )
-
-        # embed = image_embed + sequence_embed
-        out = self.relu(self.linear_1(sequence_embed))
-        # out = self.softmax(self.linear_2(out))
-        out = self.linear_2(out)
-        return out
+        return scores, encoded_captions, decode_lengths, alphas, sort_ind
 
     def prepare(self, dataset_dir: str):
         """_summary_
@@ -146,7 +138,7 @@ if __name__ == "__main__":
     decoder_dim = 256  # 512
     vocab_size = 1741
 
-    net = BertCaptioning(
+    net = BertCaptioningNet(
         image_embed_net=ResnetEncoder(),
         text_embed_net=DecoderWithAttention(
             attention_dim=attention_dim,
